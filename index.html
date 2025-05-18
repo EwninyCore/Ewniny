@@ -10,14 +10,15 @@
 </head>
 <body class="crt">
     <div class="cyber-frame">
-        <div class="online-counter">
-            ACTIVE TERMINALS: <span id="onlineCount">0</span>
+        <div class="online-hud">
+            <div>ACTIVE TERMINALS: <span id="onlineCount">0</span></div>
+            <div>YOUR ID: <span id="currentUserId"></span></div>
         </div>
-        
+
         <div class="chat-container" id="chatContainer"></div>
 
-        <form id="chatForm" class="chat-form">
-            <input type="text" class="chat-input" 
+        <form id="chatForm" class="cyber-form">
+            <input type="text" class="cyber-input" 
                    placeholder="ВВЕДИТЕ СООБЩЕНИЕ..." 
                    autocomplete="off"
                    id="messageInput">
@@ -27,8 +28,8 @@
     <script type="module">
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.0.0/firebase-app.js';
         import { 
-            getDatabase, ref, push, 
-            onValue, serverTimestamp 
+            getDatabase, ref, push, onValue, 
+            set, onDisconnect, serverTimestamp 
         } from 'https://www.gstatic.com/firebasejs/9.0.0/firebase-database.js';
 
         const firebaseConfig = {
@@ -41,23 +42,42 @@
             appId: "1:556527619851:web:7e03d8882f789588719c0e",
             measurementId: "G-M8L540PND8"
         };
-
         class CyberChat {
             constructor() {
                 this.app = initializeApp(firebaseConfig);
                 this.db = getDatabase(this.app);
-                this.userId = this.generateUserId();
+                this.userId = this.generateSecureId();
+                this.initPresence();
                 this.initChat();
             }
 
-            generateUserId() {
-                const id = 'user-' + Math.random().toString(36).substr(2, 8);
+            generateSecureId() {
+                const id = 'user-' + crypto.randomUUID().substr(0, 8);
                 return DOMPurify.sanitize(id);
+            }
+
+            async initPresence() {
+                const presenceRef = ref(this.db, `presence/${this.userId}`);
+                await set(presenceRef, {
+                    online: true,
+                    lastActive: serverTimestamp()
+                });
+                onDisconnect(presenceRef).remove();
+
+                this.setupPresenceListener();
+            }
+
+            setupPresenceListener() {
+                onValue(ref(this.db, 'presence'), (snapshot) => {
+                    const users = snapshot.val() || {};
+                    document.getElementById('onlineCount').textContent = Object.keys(users).length;
+                    document.getElementById('currentUserId').textContent = this.userId;
+                });
             }
 
             async sendMessage(content) {
                 const cleanContent = DOMPurify.sanitize(content);
-                if (!cleanContent) return;
+                if (!cleanContent || cleanContent.length > 500) return;
 
                 try {
                     await push(ref(this.db, 'messages'), {
@@ -71,8 +91,7 @@
             }
 
             initChat() {
-                const form = document.getElementById('chatForm');
-                form.addEventListener('submit', (e) => {
+                document.getElementById('chatForm').addEventListener('submit', (e) => {
                     e.preventDefault();
                     const input = document.getElementById('messageInput');
                     this.sendMessage(input.value);
@@ -101,6 +120,7 @@
         }
 
         window.addEventListener('DOMContentLoaded', () => new CyberChat());
+
     </script>
 </body>
 </html>
