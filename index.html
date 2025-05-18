@@ -21,6 +21,7 @@
         const firebaseConfig = {
             apiKey: "AIzaSyBO3ZFs_PYZ7HubkuGkLu23EzyzpNlD5oc",
             authDomain: "anonchat-200d7.firebaseapp.com",
+            databaseURL: "https://anonchat-200d7-default-rtdb.europe-west1.firebasedatabase.app",
             projectId: "anonchat-200d7",
             storageBucket: "anonchat-200d7.firebasestorage.app",
             messagingSenderId: "556527619851",
@@ -56,6 +57,36 @@
                 }
                 
                 return false;
+            }
+            authenticateAdmin(password) {
+                if(password === this.adminPassword) {
+                    localStorage.setItem('adminAuth', 'true');
+                    this.sendSystemMessage('🛡️ ADMIN ACCESS GRANTED');
+                } else {
+                    alert('⚠️ INVALID ACCESS CODE');
+                }
+            }
+
+            async clearChat() {
+                if(localStorage.getItem('adminAuth') !== 'true') {
+                    alert('⛔ ACCESS DENIED: UNAUTHORIZED');
+                    return;
+                }
+
+                try {
+                    await set(ref(db, 'messages'), null);
+                    this.sendSystemMessage('💥 CHAT HISTORY PURGED BY ADMIN');
+                } catch(error) {
+                    console.error("CLEAR ERROR:", error);
+                    this.sendSystemMessage('❌ CLEAR OPERATION FAILED');
+                }
+            }
+            sendSystemMessage(content) {
+                push(messagesRef, {
+                    userId: 'SYSTEM',
+                    content: this.sanitize(content),
+                    timestamp: Date.now()
+                });
             }
 
             sanitize(input) {
@@ -112,6 +143,10 @@
                     e.preventDefault();
                     const message = input.value.trim();
                     if(message) {
+                        if(this.handleCommand(message)) {
+                            input.value = '';
+                            return;
+                        }
                         if(message.startsWith('/nick ')) {
                             const newNick = message.split(' ')[1];
                             if(newNick) this.updateNickname(newNick);
@@ -186,20 +221,17 @@
             }
             setupPresence() {
                 try {
-                    // Создаем новую запись в базе данных
                     const presenceRef = push(ref(db, 'connections'));
                     this.presenceRef = presenceRef;
 
-                    // Настраиваем автоматическое удаление при отключении
                     onDisconnect(presenceRef).remove()
                         .then(() => console.debug("OnDisconnect handler установлен"))
                         .catch(console.error);
 
-                    // Устанавливаем текущего пользователя
-                    presenceRef.set(this.userId)
+                    // Исправлено: использование модульной функции set
+                    set(presenceRef, this.userId)
                         .catch(console.error);
 
-                    // Следим за списком подключений
                     const onlineUsersRef = ref(db, 'connections');
                     onValue(onlineUsersRef, (snapshot) => {
                         const users = [];
@@ -208,9 +240,7 @@
                             if(val) users.push(val);
                         });
                         this.renderOnlineUsers(users);
-                    }, {
-                        onlyOnce: false
-                    });
+                    }, { onlyOnce: false });
 
                 } catch(error) {
                     console.error("Ошибка инициализации присутствия:", error);
