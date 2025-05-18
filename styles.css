@@ -1,0 +1,198 @@
+:root {
+    --main-bg: #000;
+    --text-color: #0f0;
+    --border-color: #0a0;
+    --danger: #f00;
+    --glow: 0 0 10px #0f0;
+    --message-bg: rgba(0, 30, 0, 0.3);
+    --self-message-bg: rgba(30, 0, 0, 0.3);
+    --scrollbar-bg: #001100;
+    --overlay-opacity: 0.1;
+    --transition-speed: 0.3s;
+}
+
+body.crt {
+    background: var(--main-bg);
+    color: var(--text-color);
+    font-family: 'Courier New', monospace, system-ui;
+    line-height: 1.6;
+    min-height: 100vh;
+    text-rendering: optimizeSpeed;
+    overflow-x: hidden;
+}
+
+/* Улучшенный CRT-эффект */
+.crt::before,
+.crt::after {
+    content: "";
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 9999;
+}
+
+.crt::before {
+    background: linear-gradient(
+        to bottom,
+        transparent 50%,
+        rgba(0, 0, 0, 0.1) 50%
+    );
+    background-size: 100% 4px;
+    animation: scanline 6s linear infinite;
+}
+
+.crt::after {
+    background: radial-gradient(
+        ellipse at center,
+        rgba(0, 255, 0, 0.05) 0%,
+        rgba(0, 255, 0, 0) 70%
+    );
+    animation: flicker 0.15s infinite;
+}
+
+@keyframes scanline {
+    0% { transform: translateY(-100%); }
+    100% { transform: translateY(100%); }
+}
+
+@keyframes flicker {
+    0% { opacity: 0.9; }
+    50% { opacity: 1; }
+    100% { opacity: 0.9; }
+}
+
+/* Адаптивный контейнер чата */
+.chat-container {
+    max-width: min(800px, 90vw);
+    margin: 2rem auto;
+    padding: 1.5rem;
+    border: 1px solid var(--border-color);
+    background: rgba(0, 20, 0, 0.95);
+    box-shadow: var(--glow);
+    max-height: 70vh;
+    overflow-y: overlay;
+    scroll-behavior: smooth;
+    backdrop-filter: blur(2px);
+}
+
+/* Улучшенный скроллбар */
+.chat-container::-webkit-scrollbar {
+    width: 10px;
+}
+
+.chat-container::-webkit-scrollbar-track {
+    background: var(--scrollbar-bg);
+}
+
+.chat-container::-webkit-scrollbar-thumb {
+    background: var(--border-color);
+    border-radius: 5px;
+    border: 2px solid var(--scrollbar-bg);
+}
+
+/* Анимация сообщений */
+.message {
+    margin: 1.5rem 0;
+    padding: 1rem;
+    border-left: 3px solid var(--border-color);
+    background: var(--message-bg);
+    position: relative;
+    animation: messageAppear 0.4s cubic-bezier(0.18, 0.89, 0.32, 1.28);
+    transition: transform var(--transition-speed), opacity var(--transition-speed);
+}
+
+.message:hover {
+    transform: translateX(5px);
+}
+
+.message.self {
+    border-color: var(--danger);
+    background: var(--self-message-bg);
+    margin-left: 10%;
+}
+
+/* Интерактивные элементы */
+.delete-btn {
+    background: none;
+    border: 1px solid var(--danger);
+    color: var(--danger);
+    cursor: pointer;
+    padding: 0.2rem 0.5rem;
+    transition: all var(--transition-speed);
+}
+
+.delete-btn:hover {
+    background: var(--danger);
+    color: var(--main-bg);
+}
+
+.chat-form button {
+    background: var(--border-color);
+    transition: all var(--transition-speed);
+}
+
+.chat-form button:hover {
+    filter: brightness(1.2);
+    box-shadow: var(--glow);
+}
+
+/* Адаптивная форма */
+.chat-form {
+    max-width: min(800px, 90vw);
+    margin: 2rem auto;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 1rem;
+}
+
+.chat-input {
+    background: rgba(0, 20, 0, 0.9);
+    border: 1px solid var(--border-color);
+    transition: border-color var(--transition-speed);
+    min-height: 44px;
+}
+
+/* Индикатор набора текста */
+.typing-indicator {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.typing-indicator::after {
+    content: "...";
+    animation: typing 1.5s infinite;
+}
+
+@keyframes typing {
+    0%, 60%, 100% { opacity: 0.4; }
+    30% { opacity: 1; }
+}
+
+/* Медиа-запросы для мобильных устройств */
+@media (max-width: 768px) {
+    .chat-container {
+        margin: 1rem auto;
+        padding: 1rem;
+    }
+    
+    .chat-form {
+        grid-template-columns: 1fr;
+    }
+    
+    .message {
+        margin: 1rem 0;
+        padding: 0.8rem;
+    }
+}
+
+/* Оптимизация анимаций */
+@media (prefers-reduced-motion: reduce) {
+    * {
+        animation: none !important;
+        transition: none !important;
+    }
+}
