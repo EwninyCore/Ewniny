@@ -1,23 +1,36 @@
-<!-- index.html -->
 <!DOCTYPE html>
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Anonymous CyberChat</title>
+    <title>CyberMatrix Chat v3.14</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/normalize/8.0.1/normalize.min.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.0.6/purify.min.js"></script>
     <link rel="stylesheet" href="styles.css">
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+</head>
+<body class="crt">
+    <div class="cyber-frame">
+        <div class="online-counter">
+            ACTIVE TERMINALS: <span id="onlineCount">0</span>
+        </div>
+        
+        <div class="chat-container" id="chatContainer"></div>
+
+        <form id="chatForm" class="chat-form">
+            <input type="text" class="chat-input" 
+                   placeholder="ВВЕДИТЕ СООБЩЕНИЕ..." 
+                   autocomplete="off"
+                   id="messageInput">
+            <button type="submit">➤</button>
+        </form>
+    </div>
     <script type="module">
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.0.0/firebase-app.js';
         import { 
-            getDatabase, 
-            ref, 
-            push, 
-            onValue, 
-            onDisconnect,
-            set
+            getDatabase, ref, push, 
+            onValue, serverTimestamp 
         } from 'https://www.gstatic.com/firebasejs/9.0.0/firebase-database.js';
-        import { getStorage, ref as storageRef, uploadBytes, getDownloadURL } from 'https://www.gstatic.com/firebasejs/9.0.0/firebase-storage.js';
+
         const firebaseConfig = {
             apiKey: "AIzaSyBO3ZFs_PYZ7HubkuGkLu23EzyzpNlD5oc",
             authDomain: "anonchat-200d7.firebaseapp.com",
@@ -29,252 +42,65 @@
             measurementId: "G-M8L540PND8"
         };
 
-        const app = initializeApp(firebaseConfig);
-        const db = getDatabase(app);
-        const messagesRef = ref(db, 'messages');
-
         class CyberChat {
             constructor() {
+                this.app = initializeApp(firebaseConfig);
+                this.db = getDatabase(this.app);
                 this.userId = this.generateUserId();
-                this.presenceRef = null;
-                this.storage = getStorage(app);
-                this.initMatrix();
                 this.initChat();
-                this.setupPresence();
-                this.adminPassword = "cyber_secret_888";
             }
-            handleCommand(message) {
-                const args = message.split(' ');
-                
-                if(args[0] === '/admin' && args[1]) {
-                    this.authenticateAdmin(args[1]);
-                    return true;
-                }
-                
-                if(args[0] === '/clear') {
-                    this.clearChat();
-                    return true;
-                }
-                
-                return false;
-            }
-            authenticateAdmin(password) {
-                if(password === this.adminPassword) {
-                    localStorage.setItem('adminAuth', 'true');
-                    this.sendSystemMessage('🛡️ ADMIN ACCESS GRANTED');
-                } else {
-                    alert('⚠️ INVALID ACCESS CODE');
-                }
-            }
-
-            async clearChat() {
-                if(localStorage.getItem('adminAuth') !== 'true') {
-                    alert('⛔ ACCESS DENIED: UNAUTHORIZED');
-                    return;
-                }
-
-                try {
-                    await set(ref(db, 'messages'), null);
-                    this.sendSystemMessage('💥 CHAT HISTORY PURGED BY ADMIN');
-                } catch(error) {
-                    console.error("CLEAR ERROR:", error);
-                    this.sendSystemMessage('❌ CLEAR OPERATION FAILED');
-                }
-            }
-            sendSystemMessage(content) {
-                push(messagesRef, {
-                    userId: 'SYSTEM',
-                    content: this.sanitize(content),
-                    timestamp: Date.now()
-                });
-            }
-
-            sanitize(input) {
-                const div = document.createElement('div');
-                div.textContent = input;
-                return div.innerHTML;
-            }
-
 
             generateUserId() {
-                const storedId = localStorage.getItem('anonymousId');
-                if(storedId) return this.sanitize(storedId);
-                
-                const newId = 'user-' + Math.random().toString(36).substr(2, 6);
-                localStorage.setItem('anonymousId', newId);
-                return newId;
+                const id = 'user-' + Math.random().toString(36).substr(2, 8);
+                return DOMPurify.sanitize(id);
             }
-            initMatrix() {
-                const canvas = document.getElementById('matrixCanvas');
-                if(!canvas) return;
-                
-                const ctx = canvas.getContext('2d');
-                canvas.width = window.innerWidth;
-                canvas.height = window.innerHeight;
 
-                const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789@#$%^&*()";
-                const drops = new Array(Math.floor(canvas.width/20)).fill(0);
+            async sendMessage(content) {
+                const cleanContent = DOMPurify.sanitize(content);
+                if (!cleanContent) return;
 
-                const draw = () => {
-                    ctx.fillStyle = 'rgba(0, 0, 0, 0.05)';
-                    ctx.fillRect(0, 0, canvas.width, canvas.height);
-                    ctx.fillStyle = '#0F0';
-                    ctx.font = '20px monospace';
-
-                    drops.forEach((y, i) => {
-                        ctx.fillText(
-                            chars[Math.floor(Math.random()*chars.length)],
-                            i*20,
-                            y*20
-                        );
-                        drops[i] = y > canvas.height/20 ? 0 : y + 1.5;
+                try {
+                    await push(ref(this.db, 'messages'), {
+                        userId: this.userId,
+                        content: cleanContent,
+                        timestamp: serverTimestamp()
                     });
-
-                    requestAnimationFrame(draw);
-                };
-                draw();
+                } catch (error) {
+                    console.error("Transmission error:", error);
+                }
             }
 
             initChat() {
                 const form = document.getElementById('chatForm');
-                const input = document.querySelector('.chat-input');
-                
                 form.addEventListener('submit', (e) => {
                     e.preventDefault();
-                    const message = input.value.trim();
-                    if(message) {
-                        if(this.handleCommand(message)) {
-                            input.value = '';
-                            return;
-                        }
-                        if(message.startsWith('/nick ')) {
-                            const newNick = message.split(' ')[1];
-                            if(newNick) this.updateNickname(newNick);
-                        } else {
-                            this.sendMessage(message);
-                        }
-                        input.value = '';
-                    }
+                    const input = document.getElementById('messageInput');
+                    this.sendMessage(input.value);
+                    input.value = '';
                 });
 
-                onValue(messagesRef, (snapshot) => {
-                    this.messages = Object.values(snapshot.val() || {});
-                    this.renderChat();
+                onValue(ref(this.db, 'messages'), (snapshot) => {
+                    const messages = snapshot.val() ? Object.values(snapshot.val()) : [];
+                    this.renderMessages(messages);
                 });
             }
 
-            setupChatForm() {
-                const form = document.getElementById('chatForm');
-                const input = document.querySelector('.chat-input');
-                
-                form.addEventListener('submit', (e) => {
-                    e.preventDefault();
-                    const message = input.value.trim();
-                    if(message) {
-                        this.sendMessage(message);
-                        input.value = '';
-                    }
-                });
-            }
-
-            async sendMessage(content) {
-                try {
-                    await push(messagesRef, {
-                        userId: this.userId,
-                        content: this.sanitize(content),
-                        timestamp: Date.now()
-                    });
-                } catch(error) {
-                    console.error("Ошибка отправки:", error);
-                }
-            }
-            async updateNickname(newNick) {
-                const sanitizedNick = this.sanitize(newNick);
-                this.userId = sanitizedNick;
-                localStorage.setItem('anonymousId', sanitizedNick);
-                
-                if(this.presenceRef) {
-                    await this.presenceRef.set(sanitizedNick);
-                }
-            }
-
-            renderChat() {
-                const container = document.querySelector('.chat-container');
-                container.innerHTML = '';
-                
-                this.messages.forEach(msg => {
-                    const msgElement = document.createElement('div');
-                    msgElement.className = `message ${msg.userId === this.userId ? 'self' : ''}`;
-                    
-                    msgElement.innerHTML = `
+            renderMessages(messages) {
+                const container = document.getElementById('chatContainer');
+                container.innerHTML = messages.map(msg => `
+                    <div class="message ${msg.userId === this.userId ? 'self' : ''}">
                         <div class="msg-header">
-                            <span class="user-id">${this.sanitize(msg.userId)}</span>
+                            <span class="user-id">${msg.userId}</span>
                             <span class="time">${new Date(msg.timestamp).toLocaleTimeString()}</span>
                         </div>
-                        <div class="msg-content">${this.sanitize(msg.content)}</div>
-                    `;
-                    
-                    container.appendChild(msgElement);
-                });
-                
+                        <div class="msg-content">${msg.content}</div>
+                    </div>
+                `).join('');
                 container.scrollTop = container.scrollHeight;
-            }
-            setupPresence() {
-                try {
-                    const presenceRef = push(ref(db, 'connections'));
-                    this.presenceRef = presenceRef;
-
-                    onDisconnect(presenceRef).remove()
-                        .then(() => console.debug("OnDisconnect handler установлен"))
-                        .catch(console.error);
-
-                    // Исправлено: использование модульной функции set
-                    set(presenceRef, this.userId)
-                        .catch(console.error);
-
-                    const onlineUsersRef = ref(db, 'connections');
-                    onValue(onlineUsersRef, (snapshot) => {
-                        const users = [];
-                        snapshot.forEach(child => {
-                            const val = child.val();
-                            if(val) users.push(val);
-                        });
-                        this.renderOnlineUsers(users);
-                    }, { onlyOnce: false });
-
-                } catch(error) {
-                    console.error("Ошибка инициализации присутствия:", error);
-                }
-            }
-
-            renderOnlineUsers(users) {
-                const countElement = document.getElementById('onlineCount');
-                const list = document.getElementById('onlineUsersList');
-                
-                if(countElement) countElement.textContent = users.length;
-                if(list) list.innerHTML = users.map(user => 
-                    `<li class="user-item">${this.sanitize(user)}</li>`
-                ).join('');
             }
         }
 
-        window.addEventListener('DOMContentLoaded', () => {
-            new CyberChat();
-        });
+        window.addEventListener('DOMContentLoaded', () => new CyberChat());
     </script>
-</head>
-<body class="crt">
-    <div class="online-counter">
-        ONLINE: <span id="onlineCount">0</span>
-    </div>
-    <canvas id="matrixCanvas"></canvas>
-    <div class="chat-container"></div>
-
-    <form id="chatForm" class="chat-form">
-        <input type="text" class="chat-input" placeholder="Введите сообщение...">
-        <button type="submit">➤</button>
-    </form>
-
-    <div id="webgl-container"></div>
 </body>
 </html>

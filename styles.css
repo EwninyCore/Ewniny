@@ -1,149 +1,105 @@
 :root {
-    --hologram-1: #00f7ff;
-    --hologram-2: #ff00ff;
-    --hologram-3: #4d00ff;
-    --depth-color: rgba(0, 15, 25, 0.9);
-    --neon-glow: 0 0 15px var(--hologram-1),
-                 0 0 25px var(--hologram-2),
-                 0 0 35px var(--hologram-3);
-    --hologram-gradient: linear-gradient(
-        135deg,
-        var(--hologram-1) 0%,
-        var(--hologram-2) 50%,
-        var(--hologram-3) 100%
-    );
-}
-
-body.crt::before {
-    background: radial-gradient(
-        ellipse at center,
-        rgba(0, 255, 255, 0.02) 0%,
-        rgba(0, 0, 0, 0.9) 70%
-    );
-    animation: hologram-pulse 8s infinite alternate;
-}
+        --neon-cyan: #00f7ff;
+        --neon-magenta: #ff00ff;
+        --matrix-green: #00ff88;
+        --deep-space: #000a15;
+        --hud-glow: 0 0 15px var(--neon-cyan);
+        }
+        
+body.crt {
+        background: radial-gradient(var(--deep-space), #001122);
+        font-family: 'Courier New', monospace;
+        color: var(--matrix-green);
+        height: 100vh;
+        margin: 0;
+        overflow: hidden;
+        position: relative;
+        }
+.cyber-frame {
+            border: 3px solid var(--neon-cyan);
+            box-shadow: var(--hud-glow),
+                        inset 0 0 30px rgba(0, 247, 255, 0.2);
+            background: rgba(0, 15, 30, 0.95);
+            max-width: 800px;
+            margin: 20px auto;
+            padding: 20px;
+            position: relative;
+        }
 
 .chat-container {
-    background: linear-gradient(
-        160deg,
-        rgba(0, 15, 25, 0.95) 20%,
-        rgba(25, 0, 25, 0.95) 80%
-    );
-    border: 1px solid rgba(0, 255, 255, 0.3);
-    box-shadow: var(--neon-glow),
-                inset 0 0 30px rgba(0, 255, 255, 0.1);
-    position: relative;
-    transform-style: preserve-3d;
-}
+            height: 60vh;
+            overflow-y: auto;
+            padding: 15px;
+            margin-bottom: 20px;
+            scrollbar-width: thin;
+            scrollbar-color: var(--neon-cyan) transparent;
+        }
 
-.chat-container::before {
-    content: "";
-    position: absolute;
-    top: -2px;
-    left: -2px;
-    right: -2px;
-    bottom: -2px;
-    background: var(--hologram-gradient);
-    z-index: -1;
-    filter: blur(40px);
-    opacity: 0.4;
-    animation: hologram-flow 6s linear infinite;
-}
-
+.online-counter {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            color: var(--neon-magenta);
+            text-shadow: 0 0 10px var(--neon-magenta);
+        }
 .message {
-    background: linear-gradient(
-        to right,
-        rgba(0, 30, 60, 0.4) 0%,
-        rgba(30, 0, 60, 0.4) 100%
-    );
-    border: 1px solid;
-    border-image: linear-gradient(
-        to right,
-        var(--hologram-1),
-        var(--hologram-2)
-    ) 1;
-    clip-path: polygon(0 0, 100% 0, 100% 80%, 98% 100%, 2% 100%, 0 80%);
-    transition: all 0.3s ease;
-}
-
-.message:hover {
-    transform: perspective(1000px) rotateX(5deg) rotateY(-2deg);
-    box-shadow: 0 0 30px rgba(0, 255, 255, 0.3);
-}
+            background: linear-gradient(
+                90deg,
+                rgba(0, 30, 60, 0.3) 0%,
+                rgba(30, 0, 60, 0.3) 100%
+            );
+            border-left: 3px solid var(--neon-cyan);
+            margin: 10px 0;
+            padding: 10px;
+            position: relative;
+            animation: messageSlide 0.5s ease-out;
+        }
 
 .message.self {
-    background: linear-gradient(
-        to left,
-        rgba(60, 0, 30, 0.4) 0%,
-        rgba(30, 0, 60, 0.4) 100%
-    );
-    border-image: linear-gradient(
-        to left,
-        var(--hologram-3),
-        var(--hologram-2)
-    ) 1;
-}
-
-@keyframes hologram-flow {
-    0% { background-position: 0% 50%; }
-    50% { background-position: 100% 50%; }
-    100% { background-position: 0% 50%; }
-}
-
-@keyframes hologram-pulse {
-    0% { opacity: 0.3; transform: scale(0.98); }
-    100% { opacity: 0.6; transform: scale(1.02); }
-}
+            border-left-color: var(--neon-magenta);
+            background: linear-gradient(
+                90deg,
+                rgba(60, 0, 30, 0.3) 0%,
+                rgba(30, 0, 60, 0.3) 100%
+            );
+        }
 
 .chat-input {
-    background: rgba(0, 10, 20, 0.8);
-    border: 1px solid var(--hologram-1);
-    box-shadow: inset 0 0 10px var(--hologram-1),
-                      0 0 10px var(--hologram-1);
-}
+            background: rgba(0, 10, 20, 0.9);
+            border: 2px solid var(--neon-cyan);
+            color: var(--matrix-green);
+            padding: 10px;
+            width: 80%;
+            font-family: inherit;
+        }
+@keyframes messageSlide {
+            from { transform: translateX(-100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+
+@keyframes neonPulse {
+            0%, 100% { opacity: 0.8; }
+            50% { opacity: 1; }
+        }
+
+@media (max-width: 768px) {
+            .cyber-frame {
+                margin: 10px;
+                padding: 10px;
+            }
+            
+            .chat-input {
+                width: 70%;
+            }
+        }
 
 .chat-form button {
-    background: var(--hologram-gradient);
-    color: black;
-    font-weight: bold;
-    text-shadow: 0 0 10px white;
-    clip-path: polygon(10% 0, 100% 0, 90% 100%, 0% 100%);
-}
-
-.message .user-id {
-    background: linear-gradient(to right, #00f7ff, #ff00ff);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    text-shadow: 0 0 15px rgba(255, 0, 255, 0.5);
-}
-
-/* Голографические дефекты */
-.chat-container::after {
-    content: "";
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: repeating-linear-gradient(
-        0deg,
-        rgba(255, 255, 255, 0.1) 0px,
-        rgba(255, 255, 255, 0.1) 1px,
-        transparent 1px,
-        transparent 3px
-    );
-    animation: scanline 6s linear infinite;
-    pointer-events: none;
-}
-.message.system-message .msg-content {
-    color: #ff5555;
-    border: 1px solid #ff555555;
-    background: #00000088;
-    padding: 8px;
-    text-shadow: 0 0 5px #ff5555;
-}
-
-.message.system-message .user-id {
-    color: #ff5555 !important;
-    font-weight: bold;
-}
+            background: linear-gradient(45deg, 
+                var(--neon-cyan), 
+                var(--neon-magenta));
+            border: none;
+            padding: 10px 20px;
+            color: black;
+            font-weight: bold;
+            cursor: pointer;
+        }
