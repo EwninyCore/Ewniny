@@ -1,198 +1,149 @@
 :root {
-    --main-bg: #000;
-    --text-color: #0f0;
-    --border-color: #0a0;
-    --danger: #f00;
-    --glow: 0 0 10px #0f0;
-    --message-bg: rgba(0, 30, 0, 0.3);
-    --self-message-bg: rgba(30, 0, 0, 0.3);
-    --scrollbar-bg: #001100;
-    --overlay-opacity: 0.1;
-    --transition-speed: 0.3s;
+    --hologram-1: #00f7ff;
+    --hologram-2: #ff00ff;
+    --hologram-3: #4d00ff;
+    --depth-color: rgba(0, 15, 25, 0.9);
+    --neon-glow: 0 0 15px var(--hologram-1),
+                 0 0 25px var(--hologram-2),
+                 0 0 35px var(--hologram-3);
+    --hologram-gradient: linear-gradient(
+        135deg,
+        var(--hologram-1) 0%,
+        var(--hologram-2) 50%,
+        var(--hologram-3) 100%
+    );
 }
 
-body.crt {
-    background: var(--main-bg);
-    color: var(--text-color);
-    font-family: 'Courier New', monospace, system-ui;
-    line-height: 1.6;
-    min-height: 100vh;
-    text-rendering: optimizeSpeed;
-    overflow-x: hidden;
+body.crt::before {
+    background: radial-gradient(
+        ellipse at center,
+        rgba(0, 255, 255, 0.02) 0%,
+        rgba(0, 0, 0, 0.9) 70%
+    );
+    animation: hologram-pulse 8s infinite alternate;
 }
 
-/* Улучшенный CRT-эффект */
-.crt::before,
-.crt::after {
+.chat-container {
+    background: linear-gradient(
+        160deg,
+        rgba(0, 15, 25, 0.95) 20%,
+        rgba(25, 0, 25, 0.95) 80%
+    );
+    border: 1px solid rgba(0, 255, 255, 0.3);
+    box-shadow: var(--neon-glow),
+                inset 0 0 30px rgba(0, 255, 255, 0.1);
+    position: relative;
+    transform-style: preserve-3d;
+}
+
+.chat-container::before {
     content: "";
-    position: fixed;
+    position: absolute;
+    top: -2px;
+    left: -2px;
+    right: -2px;
+    bottom: -2px;
+    background: var(--hologram-gradient);
+    z-index: -1;
+    filter: blur(40px);
+    opacity: 0.4;
+    animation: hologram-flow 6s linear infinite;
+}
+
+.message {
+    background: linear-gradient(
+        to right,
+        rgba(0, 30, 60, 0.4) 0%,
+        rgba(30, 0, 60, 0.4) 100%
+    );
+    border: 1px solid;
+    border-image: linear-gradient(
+        to right,
+        var(--hologram-1),
+        var(--hologram-2)
+    ) 1;
+    clip-path: polygon(0 0, 100% 0, 100% 80%, 98% 100%, 2% 100%, 0 80%);
+    transition: all 0.3s ease;
+}
+
+.message:hover {
+    transform: perspective(1000px) rotateX(5deg) rotateY(-2deg);
+    box-shadow: 0 0 30px rgba(0, 255, 255, 0.3);
+}
+
+.message.self {
+    background: linear-gradient(
+        to left,
+        rgba(60, 0, 30, 0.4) 0%,
+        rgba(30, 0, 60, 0.4) 100%
+    );
+    border-image: linear-gradient(
+        to left,
+        var(--hologram-3),
+        var(--hologram-2)
+    ) 1;
+}
+
+@keyframes hologram-flow {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+}
+
+@keyframes hologram-pulse {
+    0% { opacity: 0.3; transform: scale(0.98); }
+    100% { opacity: 0.6; transform: scale(1.02); }
+}
+
+.chat-input {
+    background: rgba(0, 10, 20, 0.8);
+    border: 1px solid var(--hologram-1);
+    box-shadow: inset 0 0 10px var(--hologram-1),
+                      0 0 10px var(--hologram-1);
+}
+
+.chat-form button {
+    background: var(--hologram-gradient);
+    color: black;
+    font-weight: bold;
+    text-shadow: 0 0 10px white;
+    clip-path: polygon(10% 0, 100% 0, 90% 100%, 0% 100%);
+}
+
+.message .user-id {
+    background: linear-gradient(to right, #00f7ff, #ff00ff);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    text-shadow: 0 0 15px rgba(255, 0, 255, 0.5);
+}
+
+/* Голографические дефекты */
+.chat-container::after {
+    content: "";
+    position: absolute;
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
-    pointer-events: none;
-    z-index: 9999;
-}
-
-.crt::before {
-    background: linear-gradient(
-        to bottom,
-        transparent 50%,
-        rgba(0, 0, 0, 0.1) 50%
+    background: repeating-linear-gradient(
+        0deg,
+        rgba(255, 255, 255, 0.1) 0px,
+        rgba(255, 255, 255, 0.1) 1px,
+        transparent 1px,
+        transparent 3px
     );
-    background-size: 100% 4px;
     animation: scanline 6s linear infinite;
+    pointer-events: none;
+}
+.message.system-message .msg-content {
+    color: #ff5555;
+    border: 1px solid #ff555555;
+    background: #00000088;
+    padding: 8px;
+    text-shadow: 0 0 5px #ff5555;
 }
 
-.crt::after {
-    background: radial-gradient(
-        ellipse at center,
-        rgba(0, 255, 0, 0.05) 0%,
-        rgba(0, 255, 0, 0) 70%
-    );
-    animation: flicker 0.15s infinite;
-}
-
-@keyframes scanline {
-    0% { transform: translateY(-100%); }
-    100% { transform: translateY(100%); }
-}
-
-@keyframes flicker {
-    0% { opacity: 0.9; }
-    50% { opacity: 1; }
-    100% { opacity: 0.9; }
-}
-
-/* Адаптивный контейнер чата */
-.chat-container {
-    max-width: min(800px, 90vw);
-    margin: 2rem auto;
-    padding: 1.5rem;
-    border: 1px solid var(--border-color);
-    background: rgba(0, 20, 0, 0.95);
-    box-shadow: var(--glow);
-    max-height: 70vh;
-    overflow-y: overlay;
-    scroll-behavior: smooth;
-    backdrop-filter: blur(2px);
-}
-
-/* Улучшенный скроллбар */
-.chat-container::-webkit-scrollbar {
-    width: 10px;
-}
-
-.chat-container::-webkit-scrollbar-track {
-    background: var(--scrollbar-bg);
-}
-
-.chat-container::-webkit-scrollbar-thumb {
-    background: var(--border-color);
-    border-radius: 5px;
-    border: 2px solid var(--scrollbar-bg);
-}
-
-/* Анимация сообщений */
-.message {
-    margin: 1.5rem 0;
-    padding: 1rem;
-    border-left: 3px solid var(--border-color);
-    background: var(--message-bg);
-    position: relative;
-    animation: messageAppear 0.4s cubic-bezier(0.18, 0.89, 0.32, 1.28);
-    transition: transform var(--transition-speed), opacity var(--transition-speed);
-}
-
-.message:hover {
-    transform: translateX(5px);
-}
-
-.message.self {
-    border-color: var(--danger);
-    background: var(--self-message-bg);
-    margin-left: 10%;
-}
-
-/* Интерактивные элементы */
-.delete-btn {
-    background: none;
-    border: 1px solid var(--danger);
-    color: var(--danger);
-    cursor: pointer;
-    padding: 0.2rem 0.5rem;
-    transition: all var(--transition-speed);
-}
-
-.delete-btn:hover {
-    background: var(--danger);
-    color: var(--main-bg);
-}
-
-.chat-form button {
-    background: var(--border-color);
-    transition: all var(--transition-speed);
-}
-
-.chat-form button:hover {
-    filter: brightness(1.2);
-    box-shadow: var(--glow);
-}
-
-/* Адаптивная форма */
-.chat-form {
-    max-width: min(800px, 90vw);
-    margin: 2rem auto;
-    display: grid;
-    grid-template-columns: 1fr auto;
-    gap: 1rem;
-}
-
-.chat-input {
-    background: rgba(0, 20, 0, 0.9);
-    border: 1px solid var(--border-color);
-    transition: border-color var(--transition-speed);
-    min-height: 44px;
-}
-
-/* Индикатор набора текста */
-.typing-indicator {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-}
-
-.typing-indicator::after {
-    content: "...";
-    animation: typing 1.5s infinite;
-}
-
-@keyframes typing {
-    0%, 60%, 100% { opacity: 0.4; }
-    30% { opacity: 1; }
-}
-
-/* Медиа-запросы для мобильных устройств */
-@media (max-width: 768px) {
-    .chat-container {
-        margin: 1rem auto;
-        padding: 1rem;
-    }
-    
-    .chat-form {
-        grid-template-columns: 1fr;
-    }
-    
-    .message {
-        margin: 1rem 0;
-        padding: 0.8rem;
-    }
-}
-
-/* Оптимизация анимаций */
-@media (prefers-reduced-motion: reduce) {
-    * {
-        animation: none !important;
-        transition: none !important;
-    }
+.message.system-message .user-id {
+    color: #ff5555 !important;
+    font-weight: bold;
 }

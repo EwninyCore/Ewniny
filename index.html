@@ -40,8 +40,23 @@
                 this.initMatrix();
                 this.initChat();
                 this.setupPresence();
+                this.adminPassword = "cyber_secret_888";
             }
-    
+            handleCommand(message) {
+                const args = message.split(' ');
+                
+                if(args[0] === '/admin' && args[1]) {
+                    this.authenticateAdmin(args[1]);
+                    return true;
+                }
+                
+                if(args[0] === '/clear') {
+                    this.clearChat();
+                    return true;
+                }
+                
+                return false;
+            }
 
             sanitize(input) {
                 const div = document.createElement('div');
