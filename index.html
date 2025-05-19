@@ -29,7 +29,8 @@
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.0.0/firebase-app.js';
         import { 
             getDatabase, ref, push, onValue, 
-            set, onDisconnect, serverTimestamp 
+            set, onDisconnect, serverTimestamp,
+            getAuth, signInAnonymously 
         } from 'https://www.gstatic.com/firebasejs/9.0.0/firebase-database.js';
 
         const firebaseConfig = {
@@ -42,44 +43,49 @@
             appId: "1:556527619851:web:7e03d8882f789588719c0e",
             measurementId: "G-M8L540PND8"
         };
+
         class CyberChat {
             constructor() {
                 this.app = initializeApp(firebaseConfig);
                 this.db = getDatabase(this.app);
-                this.userId = this.generateSecureId();
-                this.presenceRef = ref(this.db, `presence/${this.userId}`);
-                this.initPresence();
-                this.initChat();
+                this.auth = getAuth(this.app);
+                this.userId = null;
+                this.presenceRef = null;
+                this.initAuth();
             }
 
-            generateSecureId() {
-                return 'user-' + crypto.getRandomValues(new Uint32Array(1))[0].toString(16);
+            async initAuth() {
+                try {
+                    const userCredential = await signInAnonymously(this.auth);
+                    this.userId = userCredential.user.uid;
+                    document.getElementById('currentUserId').textContent = `user-${this.userId.substr(0, 8)}`;
+                    this.initPresence();
+                    this.initChat();
+                } catch (error) {
+                    console.error('Auth error:', error);
+                }
             }
 
             async initPresence() {
+                this.presenceRef = ref(this.db, `presence/${this.userId}`);
+                
+                // Устанавливаем статус присутствия
                 await set(this.presenceRef, {
                     online: true,
                     lastActive: serverTimestamp()
                 });
+
+                // Настраиваем обработчик отключения
                 onDisconnect(this.presenceRef).remove();
- 
-                window.addEventListener('beforeunload', () => this.cleanupPresence());
-                
+
+                // Слушаем изменения статусов
                 this.setupPresenceListener();
-            }
-            async cleanupPresence() {
-                try {
-                    await set(this.presenceRef, null);
-                } catch (e) {
-                    console.log("Connection already closed");
-                }
             }
 
             setupPresenceListener() {
                 onValue(ref(this.db, 'presence'), (snapshot) => {
                     const users = snapshot.val() || {};
                     document.getElementById('onlineCount').textContent = Object.keys(users).length;
-                    document.getElementById('currentUserId').textContent = this.userId;
                 });
             }
 
@@ -95,28 +101,37 @@
                     });
                 } catch (error) {
                     console.error("Transmission error:", error);
+                    throw error;
                 }
             }
 
             initChat() {
-                document.getElementById('chatForm').addEventListener('submit', async (e) => {
+                const form = document.getElementById('chatForm');
+                const input = document.getElementById('messageInput');
+
+                form.addEventListener('submit', async (e) => {
                     e.preventDefault();
-                    const input = document.getElementById('messageInput');
                     input.disabled = true;
                     
                     try {
                         await this.sendMessage(input.value);
                         input.value = '';
                     } catch (error) {
-                        console.error("Transmission failed:", error);
-                        input.value = '[MESSAGE LOST] ' + input.value;
+                        input.value = '[RETRY] ' + input.value;
                     }
                     
                     input.disabled = false;
                 });
 
+                // Слушаем сообщения
                 onValue(ref(this.db, 'messages'), (snapshot) => {
-                    const messages = snapshot.val() ? Object.values(snapshot.val()) : [];
+                    const messages = [];
+                    snapshot.forEach((childSnapshot) => {
+                        messages.push({
+                            id: childSnapshot.key,
+                            ...childSnapshot.val()
+                        });
+                    });
                     this.renderMessages(messages);
                 });
             }
@@ -126,7 +141,7 @@
                 container.innerHTML = messages.map(msg => `
                     <div class="message ${msg.userId === this.userId ? 'self' : ''}">
                         <div class="msg-header">
-                            <span class="user-id">${msg.userId}</span>
+                            <span class="user-id">user-${msg.userId.substr(0, 8)}</span>
                             <span class="time">${new Date(msg.timestamp).toLocaleTimeString()}</span>
                         </div>
                         <div class="msg-content">${msg.content}</div>
