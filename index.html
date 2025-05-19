@@ -26,23 +26,24 @@
         </form>
     </div>
     <script type="module">
-        import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.0.0/firebase-app.js';
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js';
         import { 
-            getDatabase, ref, push, onValue, 
-            set, onDisconnect, serverTimestamp 
-        } from 'https://www.gstatic.com/firebasejs/9.0.0/firebase-database.js';
+          getDatabase, ref, push, onValue, 
+          set, onDisconnect, serverTimestamp 
+        } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-database.js';
+        import { getAuth, signInAnonymously } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js';
         
         import { getAuth, signInAnonymously } from 'https://www.gstatic.com/firebasejs/9.0.0/firebase-auth.js';
 
         const firebaseConfig = {
-            apiKey: "AIzaSyBO3ZFs_PYZ7HubkuGkLu23EzyzpNlD5oc",
-            authDomain: "anonchat-200d7.firebaseapp.com",
-            databaseURL: "https://anonchat-200d7-default-rtdb.europe-west1.firebasedatabase.app",
-            projectId: "anonchat-200d7",
-            storageBucket: "anonchat-200d7.firebasestorage.app",
-            messagingSenderId: "556527619851",
-            appId: "1:556527619851:web:7e03d8882f789588719c0e",
-            measurementId: "G-M8L540PND8"
+              apiKey: "AIzaSyBO3ZFs_PYZ7HubkuGkLu23EzyzpNlD5oc",
+              authDomain: "anonchat-200d7.firebaseapp.com",
+              databaseURL: "https://anonchat-200d7-default-rtdb.europe-west1.firebasedatabase.app",
+              projectId: "anonchat-200d7",
+              storageBucket: "anonchat-200d7.firebasestorage.app",
+              messagingSenderId: "556527619851",
+              appId: "1:556527619851:web:7e03d8882f789588719c0e",
+              measurementId: "G-M8L540PND8"
         };
 
         class CyberChat {
