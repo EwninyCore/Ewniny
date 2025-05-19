@@ -17,10 +17,8 @@ body.crt {
     margin: 0;
     overflow: hidden;
     position: relative;
-    animation: textFlicker 0.15s infinite alternate;
 }
 
-/* CRT эффекты */
 body.crt::before {
     content: "";
     position: fixed;
@@ -38,6 +36,7 @@ body.crt::before {
     z-index: 9999;
     animation: scanline 6s linear infinite;
 }
+
 
 body.crt::after {
     content: "";
@@ -80,7 +79,6 @@ body.crt::after {
     scrollbar-color: var(--neon-cyan) transparent;
 }
 
-/* Стилизация скроллбара для WebKit */
 .chat-container::-webkit-scrollbar {
     width: 8px;
 }
@@ -117,38 +115,87 @@ body.crt::after {
 .chat-input {
     background: rgba(0, 10, 20, 0.9);
     border: 2px solid var(--neon-cyan);
+    border-radius: 3px;
     color: var(--matrix-green);
-    padding: 10px;
-    width: 80%;
-    font-family: inherit;
-    transition: box-shadow 0.3s;
+    padding: 12px 20px;
+    width: 78%;
+    font-family: 'Courier New', monospace;
+    font-size: 1.1em;
+    text-shadow: 0 0 5px rgba(0, 255, 136, 0.3);
+    transition: all 0.3s ease;
+    box-shadow: 
+        inset 0 0 10px rgba(0, 247, 255, 0.2),
+        0 0 10px rgba(0, 247, 255, 0.1);
+}
+
+.chat-input::placeholder {
+    color: #006f6f;
+    font-style: italic;
 }
 
 .chat-input:focus {
     outline: none;
-    box-shadow: 0 0 15px var(--neon-cyan);
+    box-shadow: 
+        inset 0 0 15px rgba(0, 247, 255, 0.3),
+        0 0 20px var(--neon-cyan);
+    border-color: #00ffff;
+    background: rgba(0, 20, 40, 0.95);
 }
 
 .chat-form button {
-    background: linear-gradient(45deg, 
-        var(--neon-cyan), 
-        var(--neon-magenta));
+    background: linear-gradient(135deg, 
+        var(--neon-cyan) 0%, 
+        var(--neon-magenta) 100%);
     border: none;
-    padding: 10px 20px;
-    color: black;
+    border-radius: 3px;
+    padding: 12px 25px;
+    margin-left: 10px;
+    color: #000;
     font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: 1px;
     cursor: pointer;
+    position: relative;
+    overflow: hidden;
     transition: 
         filter 0.3s,
-        transform 0.2s;
+        transform 0.2s,
+        box-shadow 0.3s;
+    box-shadow: 
+        0 0 15px var(--neon-cyan),
+        0 0 5px var(--neon-magenta) inset;
+}
+
+.chat-form button::before {
+    content: '';
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: linear-gradient(
+        45deg,
+        transparent,
+        rgba(255,255,255,0.2),
+        transparent
+    );
+    transform: rotate(45deg);
+    animation: buttonGlow 3s infinite linear;
 }
 
 .chat-form button:hover {
-    filter: brightness(1.2);
-    transform: scale(1.05);
+    filter: hue-rotate(15deg) brightness(1.2);
+    transform: scale(1.05) skewX(-3deg);
+    box-shadow: 
+        0 0 25px var(--neon-cyan),
+        0 0 10px var(--neon-magenta) inset;
 }
 
-/* Анимации */
+.chat-form button:active {
+    transform: scale(0.95) skewX(0deg);
+    filter: brightness(0.9);
+}
+
 @keyframes messageSlide {
     from { transform: translateX(-100%); opacity: 0; }
     to { transform: translateX(0); opacity: 1; }
@@ -173,9 +220,10 @@ body.crt::after {
     100% { opacity: 0.2; }
 }
 
-@keyframes textFlicker {
-    0% { text-shadow: 0 0 2px var(--matrix-green); }
-    100% { text-shadow: 0 0 5px var(--matrix-green), 0 0 10px var(--matrix-green); }
+
+@keyframes buttonGlow {
+    0% { left: -50%; }
+    100% { left: 150%; }
 }
 
 @media (max-width: 768px) {
@@ -187,11 +235,13 @@ body.crt::after {
     
     .chat-input {
         width: 70%;
-        padding: 8px;
+        padding: 10px 15px;
+        font-size: 1em;
     }
     
     .chat-form button {
-        padding: 8px 15px;
+        padding: 10px 20px;
+        font-size: 0.9em;
     }
     
     :root {
