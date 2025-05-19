@@ -32,24 +32,28 @@
           set, onDisconnect, serverTimestamp 
         } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-database.js';
         import { getAuth, signInAnonymously } from 'https://www.gstatic.com/firebasejs/9.22.0/firebase-auth.js';
+        
         const firebaseConfig = {
-              apiKey: "AIzaSyBO3ZFs_PYZ7HubkuGkLu23EzyzpNlD5oc",
-              authDomain: "anonchat-200d7.firebaseapp.com",
-              databaseURL: "https://anonchat-200d7-default-rtdb.europe-west1.firebasedatabase.app",
-              projectId: "anonchat-200d7",
-              storageBucket: "anonchat-200d7.firebasestorage.app",
-              messagingSenderId: "556527619851",
-              appId: "1:556527619851:web:7e03d8882f789588719c0e",
-              measurementId: "G-M8L540PND8"
+            apiKey: "AIzaSyBO3ZFs_PYZ7HubkuGkLu23EzyzpNlD5oc",
+            authDomain: "anonchat-200d7.firebaseapp.com",
+            databaseURL: "https://anonchat-200d7-default-rtdb.europe-west1.firebasedatabase.app",
+            projectId: "anonchat-200d7",
+            storageBucket: "anonchat-200d7.firebasestorage.app",
+            messagingSenderId: "556527619851",
+            appId: "1:556527619851:web:7e03d8882f789588719c0e",
+            measurementId: "G-M8L540PND8"
         };
 
         class CyberChat {
             constructor() {
                 this.app = initializeApp(firebaseConfig);
                 this.db = getDatabase(this.app);
-                this.auth = getAuth(this.app)
+                this.auth = getAuth(this.app);
                 this.userId = null;
                 this.presenceRef = null;
+                this.MESSAGE_DELAY = 2000;
+                this.lastSentTime = 0;
+                this.lastMessage = '';
                 this.initAuth();
             }
 
@@ -67,30 +71,44 @@
 
             async initPresence() {
                 this.presenceRef = ref(this.db, `presence/${this.userId}`);
-                
-                // Устанавливаем статус присутствия
                 await set(this.presenceRef, {
                     online: true,
                     lastActive: serverTimestamp()
                 });
 
-                // Настраиваем обработчик отключения
-                onDisconnect(this.presenceRef).remove();
+                onDisconnect(this.presenceRef).set({
+                    online: false,
+                    lastActive: serverTimestamp()
+                });
 
-                // Слушаем изменения статусов
                 this.setupPresenceListener();
             }
 
             setupPresenceListener() {
-                onValue(ref(this.db, 'presence'), (snapshot) => {
+                const presenceRef = ref(this.db, 'presence');
+                onValue(presenceRef, (snapshot) => {
                     const users = snapshot.val() || {};
-                    document.getElementById('onlineCount').textContent = Object.keys(users).length;
+                    const onlineUsers = Object.values(users).filter(user => user.online);
+                    document.getElementById('onlineCount').textContent = onlineUsers.length;
                 });
             }
 
             async sendMessage(content) {
-                const cleanContent = DOMPurify.sanitize(content);
-                if (!cleanContent || cleanContent.length > 500) return;
+                const now = Date.now();
+                const cleanContent = DOMPurify.sanitize(content.trim());
+                
+                if (!cleanContent || 
+                    cleanContent.length > 500 ||
+                    cleanContent === this.lastMessage ||
+                    now - this.lastSentTime < this.MESSAGE_DELAY
+                ) {
+                    throw new Error('Сообщение слишком часто или повторяется');
+                }
+
+                // Дополнительная проверка на спам-паттерны
+                if (this.isSpamPattern(cleanContent)) {
+                    throw new Error('Обнаружен спам-паттерн');
+                }
 
                 try {
                     await push(ref(this.db, 'messages'), {
@@ -98,10 +116,18 @@
                         content: cleanContent,
                         timestamp: serverTimestamp()
                     });
+                    
+                    this.lastMessage = cleanContent;
+                    this.lastSentTime = now;
                 } catch (error) {
                     console.error("Transmission error:", error);
                     throw error;
                 }
+            }
+
+            isSpamPattern(content) {
+                const spamRegex = /(\S)(\1{5,}|(?: ?\S\1{2,}){4})/g;
+                return spamRegex.test(content);
             }
 
             initChat() {
@@ -116,42 +142,45 @@
                         await this.sendMessage(input.value);
                         input.value = '';
                     } catch (error) {
-                        input.value = '[RETRY] ' + input.value;
+                        console.warn('Blocked:', error.message);
+                        input.value = '[BLOCKED] ' + input.value;
                     }
                     
-                    input.disabled = false;
+                    setTimeout(() => {
+                        input.disabled = false;
+                    }, this.MESSAGE_DELAY);
                 });
 
-                // Слушаем сообщения
                 onValue(ref(this.db, 'messages'), (snapshot) => {
                     const messages = [];
-                    snapshot.forEach((childSnapshot) => {
-                        messages.push({
-                            id: childSnapshot.key,
-                            ...childSnapshot.val()
-                        });
-                    });
+                    snapshot.forEach(child => messages.push({ id: child.key, ...child.val() }));
                     this.renderMessages(messages);
                 });
             }
 
             renderMessages(messages) {
                 const container = document.getElementById('chatContainer');
-                container.innerHTML = messages.map(msg => `
-                    <div class="message ${msg.userId === this.userId ? 'self' : ''}">
+                container.innerHTML = '';
+                
+                messages.forEach(msg => {
+                    const msgDiv = document.createElement('div');
+                    msgDiv.className = `message ${msg.userId === this.userId ? 'self' : ''}`;
+                    
+                    msgDiv.innerHTML = `
                         <div class="msg-header">
                             <span class="user-id">user-${msg.userId.substr(0, 8)}</span>
                             <span class="time">${new Date(msg.timestamp).toLocaleTimeString()}</span>
                         </div>
                         <div class="msg-content">${msg.content}</div>
-                    </div>
-                `).join('');
+                    `;
+                    container.append(msgDiv);
+                });
+                
                 container.scrollTop = container.scrollHeight;
             }
         }
 
         window.addEventListener('DOMContentLoaded', () => new CyberChat());
-
     </script>
 </body>
 </html>
