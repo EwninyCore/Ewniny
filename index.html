@@ -47,24 +47,32 @@
                 this.app = initializeApp(firebaseConfig);
                 this.db = getDatabase(this.app);
                 this.userId = this.generateSecureId();
+                this.presenceRef = ref(this.db, `presence/${this.userId}`);
                 this.initPresence();
                 this.initChat();
             }
 
             generateSecureId() {
-                const id = 'user-' + crypto.randomUUID().substr(0, 8);
-                return DOMPurify.sanitize(id);
+                return 'user-' + crypto.getRandomValues(new Uint32Array(1))[0].toString(16);
             }
 
             async initPresence() {
-                const presenceRef = ref(this.db, `presence/${this.userId}`);
-                await set(presenceRef, {
+                await set(this.presenceRef, {
                     online: true,
                     lastActive: serverTimestamp()
                 });
-                onDisconnect(presenceRef).remove();
-
+                onDisconnect(this.presenceRef).remove();
+ 
+                window.addEventListener('beforeunload', () => this.cleanupPresence());
+                
                 this.setupPresenceListener();
+            }
+            async cleanupPresence() {
+                try {
+                    await set(this.presenceRef, null);
+                } catch (e) {
+                    console.log("Connection already closed");
+                }
             }
 
             setupPresenceListener() {
@@ -91,11 +99,20 @@
             }
 
             initChat() {
-                document.getElementById('chatForm').addEventListener('submit', (e) => {
+                document.getElementById('chatForm').addEventListener('submit', async (e) => {
                     e.preventDefault();
                     const input = document.getElementById('messageInput');
-                    this.sendMessage(input.value);
-                    input.value = '';
+                    input.disabled = true;
+                    
+                    try {
+                        await this.sendMessage(input.value);
+                        input.value = '';
+                    } catch (error) {
+                        console.error("Transmission failed:", error);
+                        input.value = '[MESSAGE LOST] ' + input.value;
+                    }
+                    
+                    input.disabled = false;
                 });
 
                 onValue(ref(this.db, 'messages'), (snapshot) => {
