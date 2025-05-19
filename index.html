@@ -49,138 +49,202 @@
                 this.app = initializeApp(firebaseConfig);
                 this.db = getDatabase(this.app);
                 this.auth = getAuth(this.app);
+                
+
                 this.userId = null;
                 this.presenceRef = null;
                 this.MESSAGE_DELAY = 2000;
                 this.lastSentTime = 0;
                 this.lastMessage = '';
-                this.initAuth();
+                this.messageQueue = [];
+
+                this.initAuth()
+                    .catch(error => {
+                        console.error('Critical initialization error:', error);
+                        alert('SYSTEM FAILURE: Connection to CyberMatrix failed');
+                    });
             }
 
             async initAuth() {
                 try {
                     const userCredential = await signInAnonymously(this.auth);
                     this.userId = userCredential.user.uid;
-                    document.getElementById('currentUserId').textContent = `user-${this.userId.substr(0, 8)}`;
-                    this.initPresence();
+                    
+ 
+                    document.getElementById('currentUserId').textContent = 
+                        `user-${this.userId.substring(0, 8)}`;
+
+                    await this.initPresence();
                     this.initChat();
+                    this.setupRealTimeUpdates();
+
                 } catch (error) {
-                    console.error('Auth error:', error);
+                    console.error('Authentication breach:', error);
+                    throw error;
                 }
             }
 
             async initPresence() {
-                this.presenceRef = ref(this.db, `presence/${this.userId}`);
-                await set(this.presenceRef, {
-                    online: true,
-                    lastActive: serverTimestamp()
-                });
+                try {
+                    this.presenceRef = ref(this.db, `presence/${this.userId}`);
+                    await set(this.presenceRef, {
+                        online: true,
+                        lastActive: serverTimestamp()
+                    });
 
-                onDisconnect(this.presenceRef).set({
-                    online: false,
-                    lastActive: serverTimestamp()
-                });
+                    
+                    onDisconnect(this.presenceRef).set({
+                        online: false,
+                        lastActive: serverTimestamp()
+                    });
 
-                this.setupPresenceListener();
+                    
+                    this.setupPresenceListener();
+
+                } catch (error) {
+                    console.error('Presence system failure:', error);
+                    throw error;
+                }
             }
 
             setupPresenceListener() {
                 const presenceRef = ref(this.db, 'presence');
                 onValue(presenceRef, (snapshot) => {
-                    const users = snapshot.val() || {};
-                    const onlineUsers = Object.values(users).filter(user => user.online);
-                    document.getElementById('onlineCount').textContent = onlineUsers.length;
+                    try {
+                        const users = snapshot.val() || {};
+                        const onlineUsers = Object.values(users).filter(user => user.online);
+                        document.getElementById('onlineCount').textContent = onlineUsers.length;
+                    } catch (error) {
+                        console.warn('Presence data corruption:', error);
+                    }
                 });
             }
 
             async sendMessage(content) {
                 const now = Date.now();
+                
+ 
                 const cleanContent = DOMPurify.sanitize(content.trim());
                 
-                if (!cleanContent || 
-                    cleanContent.length > 500 ||
-                    cleanContent === this.lastMessage ||
-                    now - this.lastSentTime < this.MESSAGE_DELAY
-                ) {
-                    throw new Error('Сообщение слишком часто или повторяется');
-                }
-
-                // Дополнительная проверка на спам-паттерны
-                if (this.isSpamPattern(cleanContent)) {
-                    throw new Error('Обнаружен спам-паттерн');
-                }
+                if (!cleanContent) throw new Error('Empty message rejected');
+                if (cleanContent.length > 500) throw new Error('Message too long');
+                if (cleanContent === this.lastMessage) throw new Error('Duplicate message');
+                if (now - this.lastSentTime < this.MESSAGE_DELAY) throw new Error('Flood detected');
+                if (this.isSpamPattern(cleanContent)) throw new Error('Spam pattern detected');
 
                 try {
-                    await push(ref(this.db, 'messages'), {
+                    const newMessageRef = await push(ref(this.db, 'messages'), {
                         userId: this.userId,
                         content: cleanContent,
                         timestamp: serverTimestamp()
                     });
-                    
+
+                    // Локальное кэширование
                     this.lastMessage = cleanContent;
                     this.lastSentTime = now;
+                    this.messageQueue.push(newMessageRef.key);
+
+                    return newMessageRef.key;
+
                 } catch (error) {
-                    console.error("Transmission error:", error);
+                    console.error('Transmission failure:', error);
                     throw error;
                 }
             }
 
             isSpamPattern(content) {
-                const spamRegex = /(\S)(\1{5,}|(?: ?\S\1{2,}){4})/g;
-                return spamRegex.test(content);
+                const spamPatterns = [
+                    /(\S)\1{5,}/g, // Повторяющиеся символы
+                    /(?:https?|ftp):\/\/[^\s/$.?#].[^\s]*/gi, // URL
+                    /(?:[a-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\.[a-z0-9!#$%&'*+/=?^_`{|}~-]+)*|"(?:[\x01-\x08\x0b\x0c\x0e-\x1f\x21\x23-\x5b\x5d-\x7f]|\\[\x01-\x09\x0b\x0c\x0e-\x7f])*")@(?:(?:[a-z0-9](?:[a-z0-9-]*[a-z0-9])?\.)+[a-z0-9](?:[a-z0-9-]*[a-z0-9])?|\[(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?|[a-z0-9-]*[a-z0-9]:(?:[\x01-\x08\x0b\x0c\x0e-\x1f\x21-\x5a\x53-\x7f]|\\[\x01-\x09\x0b\x0c\x0e-\x7f])+)\])/gi // Email
+                ];
+                return spamPatterns.some(pattern => pattern.test(content));
             }
 
-            initChat() {
-                const form = document.getElementById('chatForm');
-                const input = document.getElementById('messageInput');
-
-                form.addEventListener('submit', async (e) => {
-                    e.preventDefault();
-                    input.disabled = true;
-                    
+            setupRealTimeUpdates() {
+                // Слушатель сообщений
+                const messagesRef = ref(this.db, 'messages');
+                onValue(messagesRef, (snapshot) => {
                     try {
-                        await this.sendMessage(input.value);
-                        input.value = '';
+                        const messages = [];
+                        snapshot.forEach(child => {
+                            const msgData = child.val();
+                            messages.push({
+                                id: child.key,
+                                userId: msgData.userId,
+                                content: msgData.content,
+                                timestamp: msgData.timestamp ? 
+                                    new Date(msgData.timestamp).toLocaleTimeString() : 
+                                    '--:--'
+                            });
+                        });
+                        this.renderMessages(messages);
                     } catch (error) {
-                        console.warn('Blocked:', error.message);
-                        input.value = '[BLOCKED] ' + input.value;
+                        console.error('Data stream corruption:', error);
                     }
-                    
-                    setTimeout(() => {
-                        input.disabled = false;
-                    }, this.MESSAGE_DELAY);
-                });
-
-                onValue(ref(this.db, 'messages'), (snapshot) => {
-                    const messages = [];
-                    snapshot.forEach(child => messages.push({ id: child.key, ...child.val() }));
-                    this.renderMessages(messages);
+                }, (error) => {
+                    console.error('Realtime connection lost:', error);
                 });
             }
 
             renderMessages(messages) {
                 const container = document.getElementById('chatContainer');
-                container.innerHTML = '';
+                
+                const fragment = document.createDocumentFragment();
                 
                 messages.forEach(msg => {
                     const msgDiv = document.createElement('div');
-                    msgDiv.className = `message ${msg.userId === this.userId ? 'self' : ''}`;
+                    msgDiv.className = `message ${msg.userId === this.userId ? 'self' : 'foreign'}`;
                     
                     msgDiv.innerHTML = `
                         <div class="msg-header">
-                            <span class="user-id">user-${msg.userId.substr(0, 8)}</span>
-                            <span class="time">${new Date(msg.timestamp).toLocaleTimeString()}</span>
+                            <span class="user-id">user-${msg.userId.substring(0, 8)}</span>
+                            <span class="timestamp">${msg.timestamp}</span>
                         </div>
                         <div class="msg-content">${msg.content}</div>
                     `;
-                    container.append(msgDiv);
+                    
+                    fragment.appendChild(msgDiv);
                 });
+
+                container.innerHTML = '';
+                container.appendChild(fragment);
                 
-                container.scrollTop = container.scrollHeight;
+                // Автоскролл
+                window.requestAnimationFrame(() => {
+                    container.scrollTop = container.scrollHeight;
+                });
+            }
+
+            initChat() {
+                const form = document.getElementById('chatForm');
+                const input = document.getElementById('messageInput');
+                
+                form.addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    
+                    if (input.disabled) return;
+                    
+                    try {
+                        input.disabled = true;
+                        await this.sendMessage(input.value);
+                        input.value = '';
+                    } catch (error) {
+                        console.warn(`Message rejected: ${error.message}`);
+                        input.value = `[BLOCKED] ${input.value}`;
+                    } finally {
+                        setTimeout(() => {
+                            input.disabled = false;
+                            input.focus();
+                        }, this.MESSAGE_DELAY);
+                    }
+                });
             }
         }
 
-        window.addEventListener('DOMContentLoaded', () => new CyberChat());
+        window.addEventListener('DOMContentLoaded', () => {
+            new CyberChat();
+        });
     </script>
 </body>
 </html>
